@@ -30,48 +30,61 @@ Ollama allows you to run large language models locally, providing privacy and co
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Cloudflare                               │
-│  ┌──────────────┐            ┌──────────────────────────────┐  │
-│  │ DNS Record   │───────────▶│  Zero Trust Tunnel          │  │
-│  │ open-webui   │            │  (Secure Access)            │  │
-│  └──────────────┘            └──────────────┬───────────────┘  │
-└─────────────────────────────────────────────┼──────────────────┘
-                                               │
-                                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                   Azure Kubernetes Service                       │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              Namespace: open-webui                       │   │
-│  │  ┌──────────────┐      ┌──────────────┐                │   │
-│  │  │ Open WebUI   │◀────▶│   Ollama     │                │   │
-│  │  │ Deployment   │      │  Deployment  │                │   │
-│  │  │ (Port 8080)  │      │ (Port 11434) │                │   │
-│  │  └──────┬───────┘      └──────┬───────┘                │   │
-│  │         │                     │                         │   │
-│  │         ▼                     ▼                         │   │
-│  │  ┌──────────────┐      ┌──────────────┐                │   │
-│  │  │ WebUI PVC    │      │ Ollama PVC   │                │   │
-│  │  │ (Azure Disk) │      │ (Azure Disk) │                │   │
-│  │  └──────────────┘      └──────────────┘                │   │
-│  │         ▲                                               │   │
-│  │         │                                               │   │
-│  │  ┌──────┴──────────────────────────────────────────┐   │   │
-│  │  │   External Secrets Operator                     │   │   │
-│  │  │   (Syncs from Azure Key Vault)                  │   │   │
-│  │  └─────────────────────────────────┬───────────────┘   │   │
-│  └────────────────────────────────────┼─────────────────────┘ │
-└───────────────────────────────────────┼───────────────────────┘
-                                        │
-                                        ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      Azure Resources                             │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐     │
-│  │  Key Vault   │    │   Managed    │    │  App         │     │
-│  │  (Secrets)   │    │  Identity    │    │  Registration│     │
-│  └──────────────┘    └──────────────┘    └──────────────┘     │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Cloudflare["☁️ Cloudflare"]
+        DNS[DNS Record<br/>open-webui.yourdomain.com]
+        Tunnel[Zero Trust Tunnel<br/>Secure Access]
+    end
+    
+    subgraph Azure["☁️ Azure Cloud"]
+        subgraph AKS["Azure Kubernetes Service"]
+            subgraph NS["Namespace: open-webui"]
+                WebUI[Open WebUI<br/>Deployment<br/>Port 8080]
+                Ollama[Ollama<br/>Deployment<br/>Port 11434]
+                WebUIPVC[WebUI PVC<br/>Azure Disk]
+                OllamaPVC[Ollama PVC<br/>Azure Disk]
+                ESO[External Secrets<br/>Operator]
+                Reloader[Stakater<br/>Reloader]
+                CFTunnel[Cloudflared<br/>Deployment]
+            end
+        end
+        
+        subgraph AzureResources["Azure Resources"]
+            KV[Key Vault<br/>Secrets Storage]
+            UAI[User-Assigned<br/>Managed Identity<br/>+RBAC Role]
+            AppReg[App Registration<br/>OAuth 2.0]
+            VMSS[AKS Node Pool<br/>VMSS]
+        end
+    end
+    
+    Users[👥 Users] -->|HTTPS| DNS
+    DNS -->|CNAME| Tunnel
+    Tunnel -->|Secure Connection| CFTunnel
+    CFTunnel -->|Internal| WebUI
+    WebUI <-->|HTTP| Ollama
+    WebUI -->|Mount| WebUIPVC
+    Ollama -->|Mount| OllamaPVC
+    ESO -->|Sync Secrets| WebUI
+    ESO -->|Sync Secrets| CFTunnel
+    Reloader -.->|Watch & Restart| WebUI
+    Reloader -.->|Watch & Restart| CFTunnel
+    UAI -->|Attached to| VMSS
+    VMSS -->|Provides Identity| ESO
+    ESO -->|Uses UAI Auth| KV
+    UAI -->|Key Vault Secrets<br/>Officer Role| KV
+    WebUI -->|OAuth Login| AppReg
+    
+    style Cloudflare fill:#f96,stroke:#333,stroke-width:2px
+    style Azure fill:#0078d4,stroke:#333,stroke-width:2px,color:#fff
+    style AKS fill:#326ce5,stroke:#333,stroke-width:2px,color:#fff
+    style NS fill:#13aa52,stroke:#333,stroke-width:2px,color:#fff
+    style AzureResources fill:#00758f,stroke:#333,stroke-width:2px,color:#fff
+    style WebUI fill:#ff6b6b,stroke:#333,stroke-width:2px
+    style Ollama fill:#4ecdc4,stroke:#333,stroke-width:2px
+    style ESO fill:#f9ca24,stroke:#333,stroke-width:2px
+    style UAI fill:#e056fd,stroke:#333,stroke-width:2px
+    style KV fill:#eb3b5a,stroke:#333,stroke-width:2px,color:#fff
 ```
 
 ### Component Flow:
