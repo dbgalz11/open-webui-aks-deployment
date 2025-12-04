@@ -84,7 +84,7 @@ graph TB
 4. **External Secrets Operator** uses the UAI to sync secrets from Azure Key Vault to Kubernetes
 5. **Stakater Reloader** watches for secret/configmap changes and automatically restarts affected pods
 6. **Cloudflare Tunnel** provides secure external access without exposing public IPs
-7. **Azure AD OAuth** enables secure authentication with Microsoft accounts
+7. **Entra ID (Azure AD) OAuth** enables secure authentication with Microsoft accounts
 
 ### Container Image Management
 
@@ -132,7 +132,7 @@ This deployment uses container images stored in your organization's Azure Contai
 - **🔑 RBAC-Based Access**: UAI with Key Vault Secrets Officer role assigned to AKS node pool
 - **🔄 Automatic Secret Rotation**: Stakater Reloader automatically restarts pods when secrets are updated
 - **🌐 Cloudflare Tunnel Integration**: Zero-trust network access without public IP exposure
-- **🔑 Azure AD SSO**: Microsoft OAuth 2.0 authentication for secure user access
+- **🔑 Entra ID (Azure AD) SSO**: Microsoft OAuth 2.0/OIDC authentication for secure user access
 - **💾 Persistent Storage**: Azure Managed Disks for data durability
 - **🎯 Production-Ready**: Includes health checks, resource limits, and high availability configurations
 - **🔧 Modular & Extensible**: Easy to customize for different environments and requirements
@@ -159,7 +159,7 @@ Before you begin, ensure you have the following:
   - Storage Accounts
   - Key Vaults
   - Managed Identities
-  - App Registrations (Azure AD)
+  - App Registrations (Entra ID / Azure AD)
 
 ### Kubernetes Addons
 
@@ -196,7 +196,7 @@ open-webui-aks-deployment/
 │   ├── 5-uai.tf                       # User-assigned managed identity
 │   ├── 6-kv.tf                        # Azure Key Vault setup with RBAC roles
 │   ├── 7-cf_tunnel.tf                 # Cloudflare tunnel configuration
-│   ├── 8-app-reg.tf                   # Azure AD app registration for SSO
+│   ├── 8-app-reg.tf                   # Entra ID (Azure AD) app registration for SSO
 │   ├── 9-webui-secret.tf              # WebUI secret key generation
 │   ├── 10-uai-nodepool-assignment.tf  # Assign identity to AKS nodes (VMSS)
 │   └── 12-k8s-deployment.tf           # Kubernetes resource deployment
@@ -376,19 +376,50 @@ kubectl logs -n open-webui deployment/ollama
 
 ## ⚙️ Configuration
 
-### Azure AD App Registration
+### Entra ID (Azure AD) App Registration for SSO Authentication
+
+This deployment uses **Microsoft Entra ID (formerly Azure AD) as the Identity Provider (IdP)** for Single Sign-On authentication via OAuth 2.0/OIDC protocol.
 
 1. **Create App Registration** in Azure Portal:
-   - Navigate to Azure Active Directory → App registrations → New registration
+   - Navigate to **Microsoft Entra ID** → **App registrations** → **New registration**
    - Name: `open-webui-app`
-   - Redirect URI: `https://open-webui.yourdomain.com/oauth/microsoft/callback`
+   - Supported account types: `Accounts in this organizational directory only (Single tenant)`
+   - Redirect URI: `Web` → `https://open-webui.yourdomain.com/oauth/microsoft/callback`
 
-2. **Configure API Permissions**:
-   - Add Microsoft Graph permissions: `User.Read`, `openid`, `email`, `profile`, `offline_access`
+2. **Configure Authentication**:
+   - Go to **Authentication** → **Implicit grant and hybrid flows**
+   - ✅ **Check "ID tokens"** (used for hybrid flows)
+   - ⚠️ Leave "Access tokens" unchecked (not needed for this flow)
+   - Save changes
 
-3. **Create Client Secret**:
-   - Go to Certificates & secrets → New client secret
-   - Store the secret in Azure Key Vault
+3. **Configure API Permissions**:
+   - Go to **API permissions** → **Add a permission**
+   - Select **Microsoft Graph** → **Delegated permissions**
+   - Add the following permissions:
+     - `User.Read` - Read user profile
+     - `openid` - OpenID Connect sign-in
+     - `email` - Read user's email
+     - `profile` - Read user's basic profile
+     - `offline_access` - Maintain access to data
+   - Click **Grant admin consent** for your organization
+
+4. **Create Client Secret**:
+   - Go to **Certificates & secrets** → **Client secrets** → **New client secret**
+   - Description: `open-webui-secret`
+   - Expiration: Choose appropriate duration (recommended: 24 months)
+   - Copy the secret **Value** (only shown once)
+   - Store the secret in Azure Key Vault using Terraform or manually
+
+5. **Note the following values** (needed for configuration):
+   - **Application (client) ID** - Found on the Overview page
+   - **Directory (tenant) ID** - Found on the Overview page
+   - **Client secret value** - Copied in previous step
+
+**Security Notes:**
+- This configuration uses OAuth 2.0 Authorization Code flow with OIDC
+- ID tokens are JWT tokens that contain user identity claims
+- Tokens are validated using Microsoft's public keys
+- Refresh tokens allow seamless re-authentication without re-login
 
 ### User-Assigned Managed Identity for Key Vault Access
 
