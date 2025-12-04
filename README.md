@@ -86,6 +86,45 @@ graph TB
 6. **Cloudflare Tunnel** provides secure external access without exposing public IPs
 7. **Azure AD OAuth** enables secure authentication with Microsoft accounts
 
+### Container Image Management
+
+This deployment uses container images stored in your organization's Azure Container Registry (ACR) for better control, security, and compliance:
+
+**Image Preparation Process:**
+
+1. **Pull official images from Docker Hub:**
+   ```bash
+   docker pull ollama/ollama:latest
+   docker pull ghcr.io/open-webui/open-webui:main
+   ```
+
+2. **Retag images for your ACR:**
+   ```bash
+   docker tag ollama/ollama:latest yourorg.azurecr.io/ollama:latest
+   docker tag ghcr.io/open-webui/open-webui:main yourorg.azurecr.io/open-webui:main
+   ```
+
+3. **Authenticate to ACR:**
+   ```bash
+   az acr login --name yourorg
+   ```
+
+4. **Push images to your ACR:**
+   ```bash
+   docker push yourorg.azurecr.io/ollama:latest
+   docker push yourorg.azurecr.io/open-webui:main
+   ```
+
+5. **Update Kubernetes deployments** to use ACR images (already configured in `yaml_files/6-ollama-deployment.yaml` and `yaml_files/7-open-webui-deployment.yaml`)
+
+**Benefits of using ACR:**
+- ✅ **Image scanning** for vulnerabilities before deployment
+- ✅ **Corporate compliance** with approved container registries
+- ✅ **Better performance** when pulling images within Azure network
+- ✅ **Version control** and image lifecycle management
+- ✅ **Network security** with private endpoints and firewall rules
+- ✅ **Image caching** reduces external dependencies
+
 ## ✨ Features
 
 - **🚀 Automated Infrastructure Provisioning**: Complete Azure resource setup via Terraform
@@ -107,11 +146,13 @@ Before you begin, ensure you have the following:
 - **Terraform** >= 1.14.0 ([Installation Guide](https://developer.hashicorp.com/terraform/downloads))
 - **Azure CLI** >= 2.50.0 ([Installation Guide](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli))
 - **kubectl** >= 1.28.0 ([Installation Guide](https://kubernetes.io/docs/tasks/tools/))
+- **Docker** (for pulling and pushing container images) ([Installation Guide](https://docs.docker.com/get-docker/))
 - **Cloudflare Account** with API token access
 
 ### Azure Resources
 
 - Active Azure subscription
+- **Azure Container Registry (ACR)** for storing container images
 - Permissions to create:
   - Resource Groups
   - AKS Clusters
