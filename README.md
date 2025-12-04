@@ -77,16 +77,18 @@ Ollama allows you to run large language models locally, providing privacy and co
 ### Component Flow:
 
 1. **Terraform** provisions Azure resources (AKS, Storage, Key Vault, Managed Identity, App Registration)
-2. **Kubernetes manifests** deploy Open WebUI and Ollama with persistent storage
-3. **External Secrets Operator** syncs secrets from Azure Key Vault to Kubernetes
-4. **Stakater Reloader** watches for secret/configmap changes and automatically restarts affected pods
-5. **Cloudflare Tunnel** provides secure external access without exposing public IPs
-6. **Azure AD OAuth** enables secure authentication with Microsoft accounts
+2. **User-Assigned Managed Identity (UAI)** is assigned **Key Vault Secrets Officer** role and attached to the AKS node pool
+3. **Kubernetes manifests** deploy Open WebUI and Ollama with persistent storage
+4. **External Secrets Operator** uses the UAI to sync secrets from Azure Key Vault to Kubernetes
+5. **Stakater Reloader** watches for secret/configmap changes and automatically restarts affected pods
+6. **Cloudflare Tunnel** provides secure external access without exposing public IPs
+7. **Azure AD OAuth** enables secure authentication with Microsoft accounts
 
 ## ✨ Features
 
 - **🚀 Automated Infrastructure Provisioning**: Complete Azure resource setup via Terraform
-- **🔐 Secure Secret Management**: Integration with Azure Key Vault and External Secrets Operator
+- **🔐 Secure Secret Management**: Azure Key Vault with User-Assigned Managed Identity (no credentials in code)
+- **🔑 RBAC-Based Access**: UAI with Key Vault Secrets Officer role assigned to AKS node pool
 - **🔄 Automatic Secret Rotation**: Stakater Reloader automatically restarts pods when secrets are updated
 - **🌐 Cloudflare Tunnel Integration**: Zero-trust network access without public IP exposure
 - **🔑 Azure AD SSO**: Microsoft OAuth 2.0 authentication for secure user access
@@ -121,7 +123,21 @@ Before you begin, ensure you have the following:
 Your AKS cluster should have:
 - **External Secrets Operator** installed ([Installation Guide](https://external-secrets.io/latest/introduction/getting-started/))
 - **Stakater Reloader** installed ([Installation Guide](https://github.com/stakater/Reloader)) - Automatically restarts pods when secrets/configmaps change
-- **Azure Workload Identity** enabled (for Key Vault access)
+
+### Azure Identity Setup
+
+This deployment uses **User-Assigned Managed Identity (UAI)** for secure Key Vault access:
+- **UAI** is created and assigned the **Key Vault Secrets Officer** role on the Key Vault
+- **UAI is attached to the AKS node pool (VMSS)** so pods can use it
+- **External Secrets Operator** uses this identity to sync secrets from Azure Key Vault
+- No credentials or secrets needed in configuration files
+
+**Why this approach?**
+- ✅ No service principal credentials to manage
+- ✅ No passwords or keys stored in Kubernetes
+- ✅ Azure RBAC for fine-grained access control
+- ✅ Identity lifecycle managed by Azure
+- ✅ Follows Azure security best practices
 
 ## 📁 Project Structure
 
@@ -135,11 +151,11 @@ open-webui-aks-deployment/
 │   ├── 3-rg.tf                        # Resource group definitions
 │   ├── 4-storage.tf                   # Azure Storage account for state/data
 │   ├── 5-uai.tf                       # User-assigned managed identity
-│   ├── 6-kv.tf                        # Azure Key Vault setup
+│   ├── 6-kv.tf                        # Azure Key Vault setup with RBAC roles
 │   ├── 7-cf_tunnel.tf                 # Cloudflare tunnel configuration
 │   ├── 8-app-reg.tf                   # Azure AD app registration for SSO
 │   ├── 9-webui-secret.tf              # WebUI secret key generation
-│   ├── 10-uai-nodepool-assignment.tf  # Assign identity to AKS nodes
+│   ├── 10-uai-nodepool-assignment.tf  # Assign identity to AKS nodes (VMSS)
 │   └── 12-k8s-deployment.tf           # Kubernetes resource deployment
 │
 └── yaml_files/                        # Kubernetes manifests
@@ -231,14 +247,24 @@ terraform apply
 
 ### Step 6: Update Kubernetes Manifests
 
-Edit `yaml_files/3-secret-store.yaml`:
+Edit `yaml_files/3-secret-store.yaml` with your **User-Assigned Managed Identity Client ID**:
 
 ```yaml
 spec:
   provider:
     azurekv:
-      identityId: "YOUR_MANAGED_IDENTITY_CLIENT_ID"
+      authType: ManagedIdentity
+      identityId: "YOUR_MANAGED_IDENTITY_CLIENT_ID"  # Get from Terraform output or Azure Portal
       vaultUrl: "https://your-keyvault-name.vault.azure.net/"
+```
+
+**Important**: The `identityId` is the **Client ID** (not Object ID) of your User-Assigned Managed Identity. You can find it:
+```bash
+# From Terraform output
+terraform output
+
+# Or from Azure CLI
+az identity show --name YOUR_UAI_NAME --resource-group YOUR_RG --query clientId -o tsv
 ```
 
 Edit `yaml_files/5-config-map.yaml`:
@@ -320,6 +346,23 @@ kubectl logs -n open-webui deployment/ollama
 3. **Create Client Secret**:
    - Go to Certificates & secrets → New client secret
    - Store the secret in Azure Key Vault
+
+### User-Assigned Managed Identity for Key Vault Access
+
+The Terraform configuration automatically:
+1. **Creates a User-Assigned Managed Identity (UAI)**
+2. **Assigns the "Key Vault Secrets Officer" role** to the UAI on the Key Vault
+3. **Attaches the UAI to the AKS node pool (VMSS)** using Azure CLI
+
+This allows pods running on the AKS cluster to:
+- Access secrets from Azure Key Vault without credentials
+- Use External Secrets Operator with Managed Identity authentication
+- Follow Azure security best practices (no passwords/keys in code)
+
+**Terraform files involved:**
+- `5-uai.tf` - Creates the User-Assigned Managed Identity
+- `6-kv.tf` - Creates Key Vault and assigns RBAC roles
+- `10-uai-nodepool-assignment.tf` - Attaches UAI to AKS VMSS
 
 ### Cloudflare Tunnel Setup
 
@@ -542,11 +585,20 @@ kubectl get secretstore -n open-webui
 kubectl get externalsecret -n open-webui
 kubectl describe externalsecret open-webui-secrets -n open-webui
 
-# Verify Managed Identity has Key Vault access
-az keyvault show --name YOUR_KV_NAME
+# Verify UAI is attached to VMSS
+az vmss identity show --resource-group YOUR_NODE_RG --name YOUR_VMSS_NAME
+
+# Verify UAI has Key Vault access
+az role assignment list --assignee YOUR_UAI_CLIENT_ID --scope /subscriptions/YOUR_SUB_ID/resourceGroups/YOUR_RG/providers/Microsoft.KeyVault/vaults/YOUR_KV_NAME
 
 # Check if Reloader is installed and running
 kubectl get pods -n kube-system -l app=reloader
+
+# Test Key Vault access from a pod
+kubectl run -it --rm debug --image=mcr.microsoft.com/azure-cli --restart=Never -n open-webui -- bash
+# Inside the pod:
+az login --identity
+az keyvault secret list --vault-name YOUR_KV_NAME
 ```
 
 ### Pods Not Restarting After Secret Update
@@ -595,7 +647,9 @@ kubectl get secret open-webui-secrets -n open-webui
 ### ✅ Best Practices Implemented
 
 - **Secrets Management**: All secrets stored in Azure Key Vault, not in code
-- **Managed Identities**: No credentials in configuration files
+- **Managed Identities**: User-Assigned Managed Identity with Key Vault Secrets Officer role (no credentials in files)
+- **RBAC Authorization**: Azure RBAC for Key Vault access control
+- **VMSS Identity Binding**: UAI attached to AKS node pool for pod-level access
 - **Network Security**: Cloudflare Tunnel eliminates public IP exposure
 - **RBAC**: Kubernetes RBAC controls access to resources
 - **OAuth 2.0**: Secure authentication via Azure AD
