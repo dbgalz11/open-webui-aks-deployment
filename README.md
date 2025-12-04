@@ -79,13 +79,15 @@ Ollama allows you to run large language models locally, providing privacy and co
 1. **Terraform** provisions Azure resources (AKS, Storage, Key Vault, Managed Identity, App Registration)
 2. **Kubernetes manifests** deploy Open WebUI and Ollama with persistent storage
 3. **External Secrets Operator** syncs secrets from Azure Key Vault to Kubernetes
-4. **Cloudflare Tunnel** provides secure external access without exposing public IPs
-5. **Azure AD OAuth** enables secure authentication with Microsoft accounts
+4. **Stakater Reloader** watches for secret/configmap changes and automatically restarts affected pods
+5. **Cloudflare Tunnel** provides secure external access without exposing public IPs
+6. **Azure AD OAuth** enables secure authentication with Microsoft accounts
 
 ## ✨ Features
 
 - **🚀 Automated Infrastructure Provisioning**: Complete Azure resource setup via Terraform
 - **🔐 Secure Secret Management**: Integration with Azure Key Vault and External Secrets Operator
+- **🔄 Automatic Secret Rotation**: Stakater Reloader automatically restarts pods when secrets are updated
 - **🌐 Cloudflare Tunnel Integration**: Zero-trust network access without public IP exposure
 - **🔑 Azure AD SSO**: Microsoft OAuth 2.0 authentication for secure user access
 - **💾 Persistent Storage**: Azure Managed Disks for data durability
@@ -118,6 +120,7 @@ Before you begin, ensure you have the following:
 
 Your AKS cluster should have:
 - **External Secrets Operator** installed ([Installation Guide](https://external-secrets.io/latest/introduction/getting-started/))
+- **Stakater Reloader** installed ([Installation Guide](https://github.com/stakater/Reloader)) - Automatically restarts pods when secrets/configmaps change
 - **Azure Workload Identity** enabled (for Key Vault access)
 
 ## 📁 Project Structure
@@ -246,6 +249,27 @@ data:
   MICROSOFT_CLIENT_ID: "YOUR_MICROSOFT_CLIENT_ID"
   MICROSOFT_CLIENT_TENANT_ID: "YOUR_MICROSOFT_TENANT_ID"
   MICROSOFT_REDIRECT_URI: "https://open-webui.yourdomain.com/oauth/microsoft/callback"
+```
+
+### Step 6a: Install Stakater Reloader (Optional but Recommended)
+
+Stakater Reloader automatically restarts pods when their secrets or configmaps are updated:
+
+```bash
+# Install using Helm
+helm repo add stakater https://stakater.github.io/stakater-charts
+helm repo update
+helm install reloader stakater/reloader --namespace kube-system
+
+# Or using kubectl
+kubectl apply -f https://raw.githubusercontent.com/stakater/Reloader/master/deployments/kubernetes/reloader.yaml
+```
+
+The deployments already have the required annotations:
+```yaml
+annotations:
+  secret.reloader.stakater.com/auto: "true"
+  configmap.reloader.stakater.com/auto: "true"
 ```
 
 ### Step 7: Deploy Kubernetes Resources
@@ -459,6 +483,27 @@ spec:
   storageClassName: managed-premium  # Or your custom storage class
 ```
 
+### Enable/Disable Automatic Reloading
+
+The deployments use Stakater Reloader annotations to automatically restart when secrets/configmaps change:
+
+```yaml
+# Enable auto-reload for both secrets and configmaps (default)
+metadata:
+  annotations:
+    secret.reloader.stakater.com/auto: "true"
+    configmap.reloader.stakater.com/auto: "true"
+
+# Or watch specific secrets/configmaps
+metadata:
+  annotations:
+    secret.reloader.stakater.com/reload: "open-webui-secrets"
+    configmap.reloader.stakater.com/reload: "open-webui-config"
+
+# Disable auto-reload
+# Simply remove the annotations or set to "false"
+```
+
 ### Multi-Region Deployment
 
 To deploy in multiple regions:
@@ -493,8 +538,32 @@ kubectl get pods -n external-secrets
 # Check SecretStore configuration
 kubectl get secretstore -n open-webui
 
+# Check ExternalSecret status
+kubectl get externalsecret -n open-webui
+kubectl describe externalsecret open-webui-secrets -n open-webui
+
 # Verify Managed Identity has Key Vault access
 az keyvault show --name YOUR_KV_NAME
+
+# Check if Reloader is installed and running
+kubectl get pods -n kube-system -l app=reloader
+```
+
+### Pods Not Restarting After Secret Update
+
+```bash
+# Verify Stakater Reloader is installed
+kubectl get deployment -n kube-system reloader
+
+# Check Reloader logs
+kubectl logs -n kube-system deployment/reloader
+
+# Verify deployment has correct annotations
+kubectl get deployment open-webui -n open-webui -o yaml | grep reloader
+
+# Manually trigger reload by updating annotation
+kubectl patch deployment open-webui -n open-webui \
+  -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"reloader.stakater.com/reload\":\"$(date +%s)\"}}}}}"
 ```
 
 ### Cloudflare Tunnel Not Working
@@ -566,6 +635,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - [Open WebUI](https://github.com/open-webui/open-webui) - The amazing WebUI for LLMs
 - [Ollama](https://ollama.ai/) - Run large language models locally
 - [External Secrets Operator](https://external-secrets.io/) - Kubernetes secret management
+- [Stakater Reloader](https://github.com/stakater/Reloader) - Automatic pod reloading on config changes
 - [Cloudflare Zero Trust](https://www.cloudflare.com/zero-trust/) - Secure network access
 
 ## 📞 Support

@@ -5,8 +5,8 @@
 # Azure Disk for Ollama (50Gi)
 resource "azurerm_managed_disk" "ollama_disk" {
   name                 = local.ollama_disk_name
-  location             = azurerm_resource_group.open_webui_nprod.location
-  resource_group_name  = azurerm_resource_group.open_webui_nprod.name
+  location             = azurerm_resource_group.open_webui.location
+  resource_group_name  = azurerm_resource_group.open_webui.name
   storage_account_type = "StandardSSD_LRS"
   create_option        = "Empty"
   disk_size_gb         = "50"
@@ -19,7 +19,7 @@ resource "azurerm_managed_disk" "ollama_disk" {
     Application = local.TAG_APPLICATION
   }
 
-  depends_on = [ azurerm_resource_group.open_webui_nprod ]
+  depends_on = [ azurerm_resource_group.open_webui ]
 
 }
 
@@ -27,8 +27,8 @@ resource "azurerm_managed_disk" "ollama_disk" {
 # Azure Disk for Open WebUI (10Gi)
 resource "azurerm_managed_disk" "openwebui_disk" {
   name                 = local.openwebui_disk_name
-  location             = azurerm_resource_group.open_webui_nprod.location
-  resource_group_name  = azurerm_resource_group.open_webui_nprod.name
+  location             = azurerm_resource_group.open_webui.location
+  resource_group_name  = azurerm_resource_group.open_webui.name
   storage_account_type = "StandardSSD_LRS"
   create_option        = "Empty"
   disk_size_gb         = "10"
@@ -41,7 +41,7 @@ resource "azurerm_managed_disk" "openwebui_disk" {
     Application = local.TAG_APPLICATION
   }
 
-  depends_on = [ azurerm_resource_group.open_webui_nprod ]
+  depends_on = [ azurerm_resource_group.open_webui ]
 
 }
 

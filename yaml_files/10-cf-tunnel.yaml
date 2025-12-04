@@ -18,7 +18,7 @@ spec:
       tolerations:
       - key: "platform"
         operator: "Equal"
-        value: "lin15n"
+        value: "linux-nodes"
         effect: "NoSchedule"
       containers:
       - name: cloudflared
