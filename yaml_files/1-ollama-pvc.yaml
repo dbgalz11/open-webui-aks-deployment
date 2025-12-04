@@ -1,0 +1,14 @@
+# PVC for Ollama (managed-csi - Azure Disk SSD)
+# No PV needed - Azure automatically creates disk
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-pvc
+  namespace: open-webui
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: managed-csi
+  resources:
+    requests:
+      storage: 50Gi

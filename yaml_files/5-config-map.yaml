@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: open-webui-config
+  namespace: open-webui
+  labels:
+    app: open-webui
+data:
+  # Ollama Service Connection
+  OLLAMA_BASE_URL: "http://ollama:11434"
+
+  # Public URL (CRITICAL: Must be set before first launch)
+  WEBUI_URL: "https://open-webui.yourdomain.com"
+
+  # Microsoft OAuth - Public Information
+  MICROSOFT_CLIENT_ID: "YOUR_MICROSOFT_CLIENT_ID"
+  MICROSOFT_CLIENT_TENANT_ID: "YOUR_MICROSOFT_TENANT_ID"
+  MICROSOFT_REDIRECT_URI: "https://open-webui.yourdomain.com/oauth/microsoft/callback"
+  OPENID_PROVIDER_URL: "https://login.microsoftonline.com/YOUR_MICROSOFT_TENANT_ID/v2.0/.well-known/openid-configuration"
+
+  # OAuth Behavior Settings
+  ENABLE_OAUTH_SIGNUP: "true"
+  OAUTH_MERGE_ACCOUNTS_BY_EMAIL: "false"
+  ENABLE_SIGNUP: "false"
+  OAUTH_SCOPES: "openid email profile User.Read offline_access"
+
+  # Application Features
+  ENABLE_RAG_WEB_SEARCH: "false"
+  ENABLE_IMAGE_GENERATION: "false"
+  ENABLE_COMMUNITY_SHARING: "false"
+
+  # User Management Settings
+  DEFAULT_USER_ROLE: "user"
+  ENABLE_ADMIN_EXPORT: "false" # value should be the same as ENABLE_ADMIN_CHAT_ACCESS
+  ENABLE_ADMIN_CHAT_ACCESS: "false"
+
+  # Logging
+  LOG_LEVEL: "INFO"
+
+  # API Settings
+  ENABLE_API_KEY: "false"
