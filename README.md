@@ -919,6 +919,58 @@ spec:
         effect: "NoSchedule"
 ```
 
+### Configure Session Affinity for Multiple Replicas
+
+The Open WebUI service is configured with **ClientIP session affinity** to ensure user sessions are maintained across the 3 replicas:
+
+```yaml
+# yaml_files/9-open-webui-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: open-webui-svc
+  namespace: open-webui
+spec:
+  type: ClusterIP
+  selector:
+    app: open-webui
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hours
+```
+
+**Why Session Affinity is Important:**
+
+- **Session Persistence**: Each client IP is consistently routed to the same pod for 3 hours
+- **WebSocket Connections**: Maintains long-lived connections for real-time chat features
+- **User Experience**: Prevents session disruptions when load balancing across replicas
+- **Stateful Interactions**: While PostgreSQL handles shared data persistence, in-memory session state is maintained per pod
+
+**Timeout Configuration:**
+
+- **10800 seconds (3 hours)**: Balances session persistence with load distribution
+- After timeout, client may be routed to a different pod (session data persists in PostgreSQL)
+- Adjust timeout based on your usage patterns:
+  ```yaml
+  # Shorter timeout for better load distribution
+  timeoutSeconds: 3600  # 1 hour
+  
+  # Longer timeout for extended sessions
+  timeoutSeconds: 28800  # 8 hours
+  ```
+
+**Important Notes:**
+
+- Session affinity is based on client IP, not authentication
+- If client IP changes (e.g., mobile network switching), user may hit a different pod
+- PostgreSQL ensures data consistency across all replicas
+- Without session affinity, users might experience unexpected behavior with 3+ replicas
+
 ### Use Different Storage Class
 
 Modify PVC to use different storage:
