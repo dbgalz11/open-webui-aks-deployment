@@ -2,7 +2,7 @@
 
 # Data source: Get existing VMSS (AKS node pool)
 data "azurerm_virtual_machine_scale_set" "aks_nodepool" {
-  name                = local.vmss_name  # e.g., "aks-xxx-xxxx-vmss"
+  name                = local.vmss_name  # e.g., "aks-lin15n-31159445-vmss"
   resource_group_name = local.resource_group_aks_node  # MC_* resource group
 }
 
@@ -18,7 +18,7 @@ locals {
   # Add our UAI to the list
   updated_identity_ids = concat(
     local.current_identity_ids,
-    [azurerm_user_assigned_identity.uai_openwebui.id]
+    [azurerm_user_assigned_identity.uai_openwebui_nprod.id]
   )
   
   # Remove duplicates
@@ -34,12 +34,12 @@ resource "null_resource" "attach_uai_to_vmss" {
       az vmss identity assign \
         --resource-group ${local.resource_group_aks_node} \
         --name ${local.vmss_name} \
-        --identities ${azurerm_user_assigned_identity.uai_openwebui.id}
+        --identities ${azurerm_user_assigned_identity.uai_openwebui_nprod.id}
     EOT
   }
 
   depends_on = [
-    azurerm_user_assigned_identity.uai_openwebui,
+    azurerm_user_assigned_identity.uai_openwebui_nprod,
     data.azurerm_virtual_machine_scale_set.aks_nodepool
   ]
 }
@@ -58,7 +58,7 @@ output "vmss_resource_group" {
 
 output "uai_attached_to_vmss" {
   description = "Confirmation that UAI is attached to VMSS"
-  value       = "UAI ${azurerm_user_assigned_identity.uai_openwebui.name} attached to VMSS ${local.vmss_name}"
+  value       = "UAI ${azurerm_user_assigned_identity.uai_openwebui_nprod.name} attached to VMSS ${local.vmss_name}"
   depends_on  = [null_resource.attach_uai_to_vmss]
 }
 

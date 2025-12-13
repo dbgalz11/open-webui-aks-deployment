@@ -1,0 +1,20 @@
+# PVC - Static provisioning azure file share csi
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: open-webui-data
+  namespace: open-webui
+  labels:
+    app: open-webui
+spec:
+  accessModes:
+  - ReadWriteMany # Must match PV
+  storageClassName: "" # Static provisioning - binds to specific PV
+  resources:
+    requests:
+      storage: 50Gi # Must match or be less than PV capacity
+  # Selector to bind to specific PV
+  selector:
+    matchLabels:
+      app: open-webui
+      storage-type: azurefile

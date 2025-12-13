@@ -1,0 +1,40 @@
+# netshoot-with-psql.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: psql-client
+  namespace: open-webui
+spec:
+  tolerations:
+  - key: "platform"
+    operator: "Equal"
+    value: "YOUR_NODE_TAINT_VALUE"
+    effect: "NoSchedule"
+
+  containers:
+  - name: postgres-client
+    image: postgres:18 # Has psql built-in!
+    command: [ "/bin/bash", "-c", "while true; do sleep 30; done" ]
+    stdin: true
+    tty: true
+
+    # Also install network tools
+    lifecycle:
+      postStart:
+        exec:
+          command:
+          - /bin/bash
+          - -c
+          - |
+            apt-get update
+            apt-get install -y dnsutils iputils-ping curl wget netcat-openbsd
+
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+
+  restartPolicy: Never

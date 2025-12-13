@@ -1,4 +1,4 @@
-resource "azurerm_resource_group" "open_webui" {
+resource "azurerm_resource_group" "open_webui_nprod" {
   name     = local.resource_group_open_webui
   location = local.location
 

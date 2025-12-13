@@ -1,0 +1,36 @@
+# Static Provisioning (SMB version)
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: open-webui-data-pv
+  labels:
+    app: open-webui
+    storage-type: azurefile
+spec:
+  capacity:
+    storage: 50Gi
+  accessModes:
+  - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: "" # Static provisioning
+  csi:
+    driver: file.csi.azure.com
+    readOnly: false
+    volumeHandle: YOUR_RESOURCE_GROUP#YOUR_STORAGE_ACCOUNT#openwebui-data
+    volumeAttributes:
+      resourceGroup: YOUR_RESOURCE_GROUP
+      storageAccount: YOUR_STORAGE_ACCOUNT
+      shareName: openwebui-data
+      protocol: smb # Using SMB for Standard storage
+    nodeStageSecretRef:
+      name: open-webui-secrets # Using ExternalSecret
+      namespace: open-webui
+
+  mountOptions:
+  - dir_mode=0777
+  - file_mode=0777
+  - uid=0
+  - gid=0
+  - mfsymlinks
+  - cache=strict
+  - nosharesock

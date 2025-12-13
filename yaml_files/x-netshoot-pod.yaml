@@ -1,0 +1,28 @@
+# netshoot-test.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: netshoot
+  namespace: open-webui
+spec:
+  tolerations:
+  - key: "platform"
+    operator: "Equal"
+    value: "YOUR_NODE_TAINT_VALUE"
+    effect: "NoSchedule"
+
+  containers:
+  - name: netshoot
+    image: nicolaka/netshoot:latest
+    command: [ "/bin/bash", "-c", "while true; do sleep 30; done" ]
+    stdin: true
+    tty: true
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
+
+  restartPolicy: Never

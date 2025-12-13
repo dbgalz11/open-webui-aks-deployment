@@ -1,4 +1,4 @@
-# 6-open-webui-deployment.yaml
+# 7-open-webui-deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -10,9 +10,12 @@ metadata:
     secret.reloader.stakater.com/auto: "true"
     configmap.reloader.stakater.com/auto: "true"
 spec:
-  replicas: 1
+  replicas: 3
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: open-webui
@@ -24,12 +27,12 @@ spec:
       tolerations:
       - key: "platform"
         operator: "Equal"
-        value: "linux-nodes"
+        value: "YOUR_NODE_TAINT_VALUE"
         effect: "NoSchedule"
 
       containers:
       - name: open-webui
-        image: ghcr.io/open-webui/open-webui:main
+        image: yourorg.azurecr.io/open-webui:main
         ports:
         - containerPort: 8080
           name: http
@@ -51,6 +54,13 @@ spec:
               name: open-webui-secrets
               key: MICROSOFT_CLIENT_SECRET
 
+        # PostgreSQL connection (used for both app data AND vectors)
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: open-webui-secrets
+              key: DATABASE_URL
+
         resources:
           requests:
             memory: "1Gi"
@@ -59,10 +69,11 @@ spec:
             memory: "2Gi"
             cpu: "500m"
 
+        # Mount Azure Files for file storage only
+        # (No vector_db directory - that's in PostgreSQL now!)
         volumeMounts:
         - name: webui-data
           mountPath: /app/backend/data
-
         livenessProbe:
           httpGet:
             path: /
@@ -80,8 +91,8 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
-
+        # Azure Files for file storage
       volumes:
       - name: webui-data
         persistentVolumeClaim:
-          claimName: open-webui-pvc
+          claimName: open-webui-data

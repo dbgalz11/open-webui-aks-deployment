@@ -18,11 +18,11 @@ spec:
       tolerations:
       - key: "platform"
         operator: "Equal"
-        value: "linux-nodes"
+        value: "YOUR_NODE_TAINT_VALUE"
         effect: "NoSchedule"
       containers:
       - name: cloudflared
-        image: cloudflare/cloudflared:latest
+        image: yourorg.azurecr.io/cloudflared:latest
         args:
         - tunnel
         - --no-autoupdate

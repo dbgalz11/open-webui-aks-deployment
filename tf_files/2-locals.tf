@@ -1,12 +1,16 @@
 locals {
 
   subscription_id           = "YOUR_AZURE_SUBSCRIPTION_ID"
-  location                  = "eastasia"
+  location                  = "eastus"
 
   # resource groups
-  resource_group_aks        = "rg-aks-prod"
-  resource_group_storage    = "rg-storage-prod"
-  resource_group_open_webui = "rg-open-webui-prod"
+  resource_group_aks        = "rg-aks"
+  resource_group_storage    = "rg-storage"
+  resource_group_open_webui = "rg-open-webui"
+
+  # storage account for open-webui files
+  storage_account_name     = "stopenwebui"
+  container_name           = "openwebui-data"
  
 
   # azure disks for pvc
@@ -14,10 +18,10 @@ locals {
   openwebui_disk_name      = "openwebui-disk"
 
   # uai
-  user_assigned_identity_name = "uai-openwebui-prod"
+  user_assigned_identity_name = "uai-openwebui"
 
   # kv
-  key_vault_name            = "kv-openwebui-prod"
+  key_vault_name            = "kv-openwebui"
   cf_tunnel_secret_name     = "cf-tunnel-token"
   cf_tunnel_id_secret_name  = "cf-tunnel-id"
   client_id_secret_name     = "openwebui-client-id"
@@ -38,12 +42,17 @@ locals {
 
 
   # AKS Node Pool / VMSS
-  resource_group_aks_node = "rg-aks-nodes-prod"  # nodepool resource group
+  resource_group_aks_node = "rg-aks-nodes"  # nodepool resource group
   vmss_name               = "aks-nodepool-vmss"  # Your VMSS name
+ 
+  # PostgreSQL
+  postgresql_server_name    = "psql-openwebui"
+  postgresql_admin_username = "openwebuiadmin"
+  postgresql_database_name  = "openwebuidb"
 
 
   # TAGS
-  TAG_OWNER                               = "your-team@example.com"
+  TAG_OWNER                               = "your-email@example.com"
   TAG_ENVIRONMENT                         = "Production"
   TAG_CREATED_BY                          = "your-email@example.com"
   TAG_COSTTYPE                            = "Operations"

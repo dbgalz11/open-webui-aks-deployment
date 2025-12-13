@@ -18,11 +18,11 @@ spec:
       tolerations:
       - key: "platform"
         operator: "Equal"
-        value: "linux-nodes"
+        value: "YOUR_NODE_TAINT_VALUE"
         effect: "NoSchedule"
       containers:
       - name: ollama
-        image: ollama/ollama:latest
+        image: yourorg.azurecr.io/ollama:latest
         ports:
         - containerPort: 11434
           name: http

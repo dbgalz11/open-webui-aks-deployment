@@ -4,8 +4,8 @@ data "azurerm_client_config" "current" {}
 # Key Vault for Open WebUI Secrets
 resource "azurerm_key_vault" "openwebui_keyvault" {
   name                        = local.key_vault_name
-  location                    = azurerm_resource_group.open_webui.location
-  resource_group_name         = azurerm_resource_group.open_webui.name
+  location                    = azurerm_resource_group.open_webui_nprod.location
+  resource_group_name         = azurerm_resource_group.open_webui_nprod.name
   tenant_id                   = data.azurerm_client_config.current.tenant_id
   sku_name                    = "standard"
   soft_delete_retention_days  = 90
@@ -20,7 +20,7 @@ resource "azurerm_key_vault" "openwebui_keyvault" {
     Application = local.TAG_APPLICATION
   }
 
-  depends_on = [ azurerm_user_assigned_identity.uai_openwebui ]
+  depends_on = [ azurerm_user_assigned_identity.uai_openwebui_nprod ]
 }
 
 
@@ -36,5 +36,5 @@ resource "azurerm_role_assignment" "current_user_certificates_officer" {
 resource "azurerm_role_assignment" "uai_secrets_officer" {
   scope                = azurerm_key_vault.openwebui_keyvault.id
   role_definition_name = "Key Vault Secrets Officer"
-  principal_id         = azurerm_user_assigned_identity.uai_openwebui.principal_id
+  principal_id         = azurerm_user_assigned_identity.uai_openwebui_nprod.principal_id
 }

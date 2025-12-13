@@ -9,6 +9,11 @@ spec:
   type: ClusterIP
   selector:
     app: open-webui
+  # Enable sticky sessions based on client IP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
   ports:
   - name: http
     port: 80

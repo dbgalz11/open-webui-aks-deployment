@@ -25,19 +25,19 @@ provider "azurerm" {
 
 provider "kubernetes" {
   config_path    = "~/.kube/config"
-  config_context = "your-aks-context"  # Update to your AKS context name
+  config_context = "aks-nprod1"  # Updated to use the aks-nprod1 context
 }
 
 # Cloudflare Provider configuration
 # Retrieve Cloudflare API token from Key Vault
-data "azurerm_key_vault" "kv_cloudflare" {
-  name                = "your-cloudflare-kv-name"
-  resource_group_name = "your-kv-resource-group"
+data "azurerm_key_vault" "kv_pass_cf_nprod" {
+  name                = "kv-pass-cf-nprod"
+  resource_group_name = "rg-ea-kv-nprod"
 }
 
 data "azurerm_key_vault_secret" "cf_api_token" {
-  name         = "cloudflare-api-token"
-  key_vault_id = data.azurerm_key_vault.kv_cloudflare.id
+  name         = "cf008-admin-token-zero-trust-edit"
+  key_vault_id = data.azurerm_key_vault.kv_pass_cf_nprod.id
 }
 
 provider "cloudflare" {
@@ -46,5 +46,5 @@ provider "cloudflare" {
 
 # Configure the Azure Active Directory Provider
 provider "azuread" {
-  tenant_id = "YOUR_AZURE_TENANT_ID"
+  tenant_id = "c8794516-b0d6-41f8-ae73-7fb3bf77642c"
 }

@@ -33,14 +33,15 @@ resource "azurerm_key_vault_secret" "client_id" {
 }
 
 /*
-# Optional: Fetch client secret from another Key Vault if you have one
+
+# Fetch client secret from another Key Vault
 data "azurerm_key_vault" "src_secrets_kv" {
-  name                = "your-source-keyvault-name"
-  resource_group_name = "your-source-rg"
+  name                = "kv-app-reg-secrets"
+  resource_group_name = "rg-ea-kv-prod"
 }
 
 data "azurerm_key_vault_secret" "src_client_secret" {
-  name         = "your-app-client-secret"  # Name in source vault
+  name         = "open-webui-qndev"  # Name in source vault
   key_vault_id = data.azurerm_key_vault.src_secrets_kv.id
 }
 
