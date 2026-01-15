@@ -1,7 +1,7 @@
 locals {
 
   subscription_id           = "YOUR_AZURE_SUBSCRIPTION_ID"
-  location                  = "eastus"
+  location                  = "eastasia"
 
   # resource groups
   resource_group_aks        = "rg-aks"
